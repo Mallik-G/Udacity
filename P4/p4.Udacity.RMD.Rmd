@@ -1,0 +1,323 @@
+Exploratory Analysis of Contributions to 2016 Presidential Candidates Dataset by Patrick Kennedy
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(ggplot2)
+library(GGally)
+library(scales)
+library(memisc)
+library(dplyr)
+library(ggthemes)
+
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+cont <- read.csv("Contributor-TX.csv")
+```
+
+# Univariate Plots Section
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots}
+
+#What are the variables we are dealing with?
+names(cont)
+
+#What're the dimensions?
+dim(cont)
+
+#I'm thinking about the following: 
+
+#the variables i am most interested in are: number and size of contributions
+#the variables that may relate to that are: candidate name, contributor city, contributor zip, contributor occupation, contributor employer, contributor receipt date
+
+
+#putting the ordering and subsetting code into a function (we use it alot)
+chart_order_func <- function(data, x, number){
+  data_new <- within(data, data[[x]] <- factor(data[[x]], 
+                                               levels=names(sort(table(data[[x]]),
+                                                                 decreasing=TRUE))))
+  
+  table_sub <- table(data_new[[x]])
+  x<-get(x, data_new)
+  return(subset(data_new, x %in% names(table_sub[table_sub>number])))
+}
+
+
+#now let's plot: contributions by city
+data <- chart_order_func(cont, "contbr_city", 1000)
+qplot(x=data$contbr_city, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+#looks like cities show a steep dropoff after the first 4 which happen to be the
+#four largest cities in texas ... not surprising that contributions may corr with population
+
+
+#plot: contributions by occupation
+data <- chart_order_func(cont, "contbr_occupation", 1000)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+#vast majority of folks contributing are retired, followed by 'Info Requested', homemaker and Not Employed.
+
+#plot: contributions by candidate
+data <- chart_order_func(cont, "cand_nm", 500)
+qplot(x=data$cand_nm, data=data) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+#ted cruz seems to dominate his home state with over 3x contributions than 2nd place Ben Carson
+
+
+#need 3 more plots here... histograms (not bivariate)... then change my explanations below
+#add to this in my bivariate section and beef that up (present what was in those tables at top, down in the bivariate section?)
+#add short discussions under each chart, in the markdown, not necessarily just in comments
+#here is where a lot of the stuff is missing, Explain each chart!
+
+#need at least 20 visualizations and relevant stats for each chart (median, quartiles, etc)
+
+#alter overplotted charts with examples given
+
+#write more in the final plots description sections to detail why i chose the plot and why it matters?
+
+#write about struggles, successes and lessons learned re: R in the reflection section
+
+
+leading_cand <- c("Clinton, Hillary Rodham", "Cruz, Rafael Edward 'Ted'", "Rubio, Marco", "Sanders, Bernard", "Trump, Donald J.")
+
+top5_bottom5 <- c("HOUSTON", "SAN ANTONIO", "DALLAS", "AUSTIN", "FORT WORTH", "PFLUGERVILLE", "PORT ARTHUR", "EULESS", "DESOTO", "GRAPEVINE")
+
+
+cont_df <- data.frame(cont)
+
+cont_df_leading <- cont_df[cont_df$cand_nm %in% leading_cand,]
+cont_df_leading <- cont_df_leading[cont_df_leading$contbr_city %in% top5_bottom5,]
+
+cont_df_austin <- cont_df_leading[cont_df_leading$contbr_city=="AUSTIN",]
+cont_df_dallas <- cont_df_leading[cont_df_leading$contbr_city=="DALLAS",]
+cont_df_houston <- cont_df_leading[cont_df_leading$contbr_city=="HOUSTON",]
+cont_df_euless <- cont_df_leading[cont_df_leading$contbr_city=="EULESS",]
+cont_df_desoto <- cont_df_leading[cont_df_leading$contbr_city=="DESOTO",]
+cont_df_grapevine <- cont_df_leading[cont_df_leading$contbr_city=="GRAPEVINE",]
+
+```
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dim(cont)
+```
+
+### What is/are the main feature(s) of interest in your dataset?
+Contributions in terms of size and number of total contributions by candidate.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+City of contributor and zipcode of contributor I believe will support the investigation as it is my hypothesis that cities and even zipcodes will offer particular political profiles.
+
+### Did you create any new variables from existing variables in the dataset?
+I created a few filters to visualize the data a bit easier.  For one I created a list of leading candidates in the overall race as well as the top 5 and bottom 5 populated cities in Texas. I then created a new dataframe filtered by these lists for analyses in my Bivariate and Multivariate sections below.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+The contribution amount seemed to follow particular denomonations (i.e. $10, $25, $50, $100) rather than form a fluid distribution.  In addition there were a number of negative values.  Upon further investigation into the dataset, the negative contributions were due to contributors reposting the donated amount in a spouse's name, reallocating the donation to the general party or changing the donated amount.
+
+Given the high number of candidates I subsetted the data on leading candidates and plan on using that particular data as I perform more granular searches i.e. voting by zipcode.
+
+
+# Bivariate Plots Section
+```{r echo=FALSE, message=FALSE, warning=FALSE, Bivariate_Plots}
+qplot(x=cand_nm, y=contb_receipt_amt, data=cont) + 
+  geom_boxplot() + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_continuous(limits=c(0,15000))
+
+
+#here let's group results by candidate name to see
+#how much was raised per candidate and how many contributions
+#were made per candidate
+by_cand <- group_by(cont, cand_nm)
+by_cand <- summarise(by_cand,
+                     count = n(),
+                     total = sum(contb_receipt_amt),
+                     total_by_count = total/count)
+
+qplot(x=cand_nm, y=total, data=by_cand) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_continuous(labels=comma)
+
+qplot(x=cand_nm, y=total_by_count, data=by_cand) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+The median donated amounts per candidate did not vary wildly however Chris Christie showed the highest median contribution amount at $1350, while Ben Carson, Hillary Clinton, Ted Cruz, Rand Paul, and Bernie Sanders had mean donated amounts around $50.  This finding can be misleading as the candidates with the most contributions in Texas are Ted Cruz (61k), Ben Carson (19k), Bernie Sanders (14k) and Hillary Clinton (13k), while the remaining candidates have less than 5000 contributions each.
+
+This illuminates number of contributions and median contributions and as such while Ted Cruz's donations have a low median dollar amount, he has the largest number of contributions.  This begs the question how much each candidate has raised thus far.  Not surprisingly, Ted Cruz's home state has raised over $15MM with Hillary Clinton in a distant second place with roughly $6MM raised. The majority of candidates did not raise more than $1MM including Bernie Sanders who as shown above has roughly 14000 contributions, slightly more than Hillary Clinton and behind Ben Carson and Ted Cruz.  
+
+Further investigation shows that Bernie Sanders has the lowest contribution by contributor ratio, followed closely by Ben Carson.  Jeb Bush, Chris Christie, Rick Perry and Rick Santorum all have contribution by contributor ratios greater than $1000.
+
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+
+A couple interesting findings were 1) Donald Trump's fundraising is almost non-existant in Texas and 2) Bernie Sanders's fundraising is greater than I imagined it would be in Texas.
+
+
+### What was the strongest relationship you found?
+The clearest relationship is the both the number of contributions by city (bigger city, more contributions) and number of contributions by candidate (Ted Cruz gathering the most).
+
+
+
+# Multivariate Plots Section
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, Multivariate_Plots}
+
+qplot(x=contbr_city, fill=cand_nm, data=cont_df_leading) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette='Set1')
+
+qplot(x=cand_nm, fill=contbr_city, data=cont_df_leading) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette="Set1", type='div')
+
+qplot(x=cand_nm, y=contb_receipt_amt, color=contbr_city, data=cont_df_leading) + 
+  geom_point(alpha = 0.5, size = 1, position = 'jitter') +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+qplot(x=contbr_city, y=contb_receipt_amt, color=cand_nm, data=cont_df_leading) + 
+  geom_point(alpha = 0.5, size = 1, position = 'jitter') +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette="Set1", type='div')
+
+#like before let's group, this time by city of the contributor and candidate name
+#this was we can run multivariate analyses on a city's candidate contribution profile
+by_city <- group_by(cont_df_leading, contbr_city, cand_nm)
+by_city <- summarise(by_city,
+                     count = n(),
+                     total = sum(contb_receipt_amt),
+                     total_by_count = total/count)
+
+
+qplot(x=contbr_city, y=total, color=cand_nm, data=by_city) + 
+  geom_point(size=6) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette="Set1", type='div') +
+  scale_y_continuous(labels=comma)
+
+qplot(x=cand_nm, y=total, color=contbr_city, data=by_city) + 
+  geom_point(size=10) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_continuous(labels=comma)
+
+
+qplot(x=contbr_zip_5, y=contb_receipt_amt, color=cand_nm, data=cont_df_austin) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette='Set1')
+
+qplot(x=contbr_zip_5, fill=cand_nm, data=cont_df_austin) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette='Set1')
+
+qplot(x=contbr_zip_5, y=contb_receipt_amt, color=cand_nm, data=cont_df_houston) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette='Set1')
+
+qplot(x=contbr_zip_5, fill=cand_nm, data=cont_df_houston) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette='Set1')
+
+
+
+```
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+By looking at just the top 5 and bottom 5 cities in Texas by population, and looking at the current leading candidates, some interesting trends emerge.  For one, it is quite clear that Ted Cruz dominates the contribution scene across Texas cities.  
+
+### Were there any interesting or surprising interactions between features?
+
+While Austin pulls more Bernie Sanders and Hillary Clinton contributions than other cities, Houston has a sizable amount of Bernie Sanders contributions, second only to Austin. Size of city certainly seems to impact the number and size of contributions (not surprisingly).  Upon looking deeper into the mix of zipcodes within cities, it becomes clear the contribution depends on particular zipcodes.  Houston's 77006 for instance has the largest number of Bernie Sanders contributions.  That zipcode's highlights are two prominent art collections and the University of St. Thomas with mean ages between 25-30.  Contrast that with zipcode 77024 which sports a mean age of 45-55 outside of the inner loop of Houston proper.
+
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_One}
+
+#factoring the data so that we can get an ordered graph
+data <- within(cont, 
+                   cand_nm <- factor(cand_nm, 
+                                      levels=names(sort(table(cand_nm), 
+                                                        decreasing=TRUE))))
+qplot(x=cand_nm, data=data) + 
+  ggtitle("Number of Contributions by Candidate in Texas") +
+  labs(x="Candidate Name", y="Number of Contributions") +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+### Description One
+Plot One illustrates the number of contributions to 2016 political candidates in the state of Texas.  Ted Cruz garners a significant majority of the contributions at over 60000, four times as many contributions as Bernie Sanders and Hillary Clinton.
+
+### Plot Two
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Two}
+qplot(x=contbr_city, fill=cand_nm, data=cont_df_leading) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_color_brewer(palette='Set1') +
+  scale_x_discrete(limits=top5_bottom5) +
+  ggtitle("Number of Contributions per City split by Candidate") +
+  labs(x="City (ordered by 5 most and 5 least populous)", y="Number of Contributions", fill="Candidate")
+
+```
+
+### Description Two
+Plot Two expands upon Plot One by illustrating contributions to 2016 political candidates in the state of Texas by the five most populated and five least populated cities in the state.  The number of candidates was reduced to the current leading candidates in the race. 
+
+### Plot Three
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=4, Plot_Three}
+
+#Chart needs some width to show full effect
+
+#factoring the data again to show an ordered graph
+data <- within(cont_df_houston, 
+                   contbr_zip_5 <- factor(contbr_zip_5, 
+                                      levels=names(sort(table(contbr_zip_5), 
+                                                        decreasing=TRUE))))
+new <- table(data$contbr_zip_5)
+#data$contbr_zip_5 %in% names(new[new>100])
+
+data_new <- subset(data, contbr_zip_5 %in% names(new[new>100]))
+
+qplot(x=contbr_zip_5, fill=cand_nm, data=data_new) +
+  theme(axis.text.x = element_text(angle=60, hjust=1), text = element_text(size=10),
+        text=element_text(size=12)) +
+  scale_color_brewer(palette='Set1') +
+  ggtitle("Number of Contributions per Zipcode in Houston split by Candidate") +
+  labs(x="Zipcode (Top 40 Contributing)", y="Number of Contributions", fill="Candidate")
+
+```
+
+### Description Three
+Plot Three expands upon Plot Two by investigating contributions to leading candidates made in the city of Houston by zipcode.  
+
+------
+
+# Reflection
+Ted Cruz dominates Texas.  He garners a staggering number of contributions across the state, his home turf.  However, his influence is not without some challenge.  While Houston favors him more strongly than any other Texas city, Houston's second and third largest contribution bases are Hillary Clinton and Bernie Sanders, respectively.  Additionally, Austin holds the second largest number of contributors in Texas and Bernie Sanders and Hillary Clinton have more contributors in the city than Ted Cruz.  But who is contributing?  Looking deeper into Houston zipcodes, a split is seen.  While Ted Cruz still is a significant player, zipcodes with younger demographics yield higher Bernie Sanders and Hillary Clinton support.  
+
+While the macro view shows a domination by Ted Cruz in terms of his contributing base, his lead is driven primarily by two cities (Houston and San Antonio) and even within Houston there are signs that a sizable percentage of youth veers toward Democratic candidates.  
+
+And in all of this, where is Trump? Nowhere in any meaningful way. Additionally, Marco Rubio is not well capitalized.  Is this due to the assumed Cruz dominance as he represents the state as a Senator?  The answer is unclear at this point.  Through this analysis however, Ted Cruz's dominance is not as solid as it has initially appeared to be.
+
+It is interesting to be able to gather quite narrow and specific data with regard to the contributors to political compaigns (and rightly so).  Certainly doing additional analyses investigating occupation and political contributions could add richness to the analysis.  Also, incorporating demographics directly into the dataset, joining on zipcodes or even street names, could add a layer of detail.  This could ultimately yield the basis for a predictive model in which contribution levels can be forecasted with even greater accuracy resulting in better information for both contributors and the parties in which those contributions rest.
+
