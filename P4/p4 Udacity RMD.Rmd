@@ -1,0 +1,898 @@
+Exploratory Analysis of Contributions to 2016 Presidential Candidates Dataset by Patrick Kennedy
+========================================================
+
+```{r echo=FALSE, message=FALSE, warning=FALSE, packages}
+# Load all of the packages that you end up using
+# in your analysis in this code chunk.
+
+# Notice that the parameter "echo" was set to FALSE for this code chunk.
+# This prevents the code from displaying in the knitted HTML output.
+# You should set echo=FALSE for all code chunks in your file.
+
+library(ggplot2)
+library(GGally)
+library(scales)
+library(memisc)
+library(dplyr)
+library(ggthemes)
+
+```
+
+```{r echo=FALSE, Load_the_Data}
+# Load the Data
+cont <- read.csv("Contributor-TX.csv")
+```
+
+# Univariate Plots Section
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE, Univariate_Plots}
+```
+
+What are the variables we are dealing with?
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+names(cont)
+```
+
+I'm thinking about the following: 
+
+1) I'm most interested in the number of contributions made and the amount of each contribution
+2) Variables that may relate to that are: candidate name, contributor city, contributor occupation, contributor employer and contribution date.
+
+Ultimately I am interested in seeing the composition of contributions across cities, understanding if there are affects by employer, occupation, date, and certainly by candidate.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#It is more helpful to view charts in an ordered way, so let's put the ordering and subsetting code into a function (we use it alot).
+chart_order_func <- function(data, x, number){
+  data_new <- within(data, data[[x]] <- factor(data[[x]], 
+                                               levels=names(sort(table(data[[x]]),
+                                                                 decreasing=TRUE))))
+  
+  table_sub <- table(data_new[[x]])
+  x<-get(x, data_new)
+  return(subset(data_new, x %in% names(table_sub[table_sub>number])))
+}
+
+
+#Additionally, the summary statistics are best contained in a function
+my_stat_func <- function(data, x){
+  myTable <- table(data[[x]])
+  df <- as.data.frame(myTable)
+  minx <- min(df$Freq)
+  maxx <- max(df$Freq)
+  meanx<- mean(df$Freq)
+  medianx<-median(df$Freq)
+  stdx<- sd(df$Freq)
+  IQRx <- IQR(df$Freq)
+  mylist <- list("Min" = minx, 
+                 "Max" = maxx, 
+                 "Mean"= meanx, 
+                 "Median" = medianx, 
+                 "Std" = stdx, 
+                 "IQR" = IQRx)
+  return(mylist)
+}
+
+print_stat_func <- function(data, x){
+  result <- my_stat_func(data, x)
+  
+  print(paste0("Min: ", result$Min))
+  print(paste0("Max: ", result$Max))
+  print(paste0("Mean: ", result$Mean))
+  print(paste0("Median: ", result$Median))
+  print(paste0("Std: ", result$Std))
+  print(paste0("IQR: ", result$IQR))
+}
+
+```
+
+
+Let's first look at the number of contributions across cities.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont, "contbr_city", -1)
+qplot(x=data$contbr_city, data=data) +
+  scale_x_discrete(breaks=NULL)
+
+print_stat_func(data, "contbr_city")
+```
+
+
+With quite a few cities that had residents that made contributions, we see that on average only approximately 94 contributions are made per city.  Clearly some cities have much larger values, the highest being 15531 contributions.  Given the median is so far below the mean, many cities show little contributions.  A more informative graph may exclude cities that have fewer than 1000 contributions for instance, given our intent is to ultimately investigate the composition of those contributions across cities.
+
+First, there are quite a few cities in Texas... how many are there?
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+length(unique(cont$contbr_city))
+```
+
+So there are 1316 cities listed here, and the majority of those cities have few contributions.  Let's rerun the graph only looking at cities that made >1000 contributions.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont, "contbr_city", 1000)
+qplot(x=data$contbr_city, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+#print_stat_func(data, "contbr_city")
+
+```
+
+It looks like cities show a dropoff after the first four which also happen to be the
+four largest cities in Texas.  I'm not surprised that there looks to be a correlation between population and number of contributions.
+
+I'll likely want to reduce the number of cities in my investigation down the road as too many cities can clog up my graph.
+
+
+
+Now let's move on to another variable and plot contributions by occupation.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont, "contbr_occupation", -1)
+qplot(x=data$contbr_occupation, data=data) +
+  scale_x_discrete(breaks=NULL)
+
+print_stat_func(data, "contbr_occupation")
+
+```
+
+
+Contributions by occupation have an even steeper dropoff than contributions by city!  There is an intuition here - some occupations are much more prevalent than others. For instance, it makes sense that being classified as 'Retired' or 'Teacher' would be more prevalent than 'Research Scientist'.  With a median of 2, it is clear that the vast majority of occupations hold 1 contribution.  This is partly a problem of specificity and breadth.  What we are interested in are the top contributing professions in an effort to see if the occupations have varying degrees of contributing profiles.
+
+Again, let's see how many occupations are listed.
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+length(unique(data$contbr_occupation))
+```
+
+There are 6737 listed occupations of people that contributed.  Now let's restrict the graph to occupations that contained at least 250 contributions.
+
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont, "contbr_occupation", 1000)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+```
+
+The vast majority of folks contributing are classified as 'Retired', followed distantly by 'Info Requested', 'Homemaker' and 'Not Employed'.  Retired, Homemaker and Not Employed can make some inuitive sense as they are more likely to be at home fielding calls from candidates soliciting contributions, more likely to see ads on TV soliciting support or be at a home computer where donations can be made easily.  Beyond these initial categories, the occupations listed with highest numbers of contributions are Attorney, Physician, Engineer and Sales, all of which denote relatively high salaries.  These higher salaries may translate to more disposable income and in turn a higher propensity to contribute to a political campaign.  Alternatively, these are common professions, along with Teachers and Consultants and by sheer proportion to other occupations, these occupations would have more contributions.
+
+It will be interesting to investigate the composition of the Retired occupation as they are a large group and likely have candidate variance built in, however retirement denotes an older than average age which nudges candidate selection to the right politically.
+
+
+Next let's look at contributions by candidate.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont, "cand_nm", -1)
+qplot(x=data$cand_nm, data=data) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+print_stat_func(data, "cand_nm")
+
+```
+
+Ted Cruz seems to dominate his home state with over 3x contributions than 2nd place Ben Carson (who at time of this writing has dropped out of the race).  Oddly enough, former Texas governor Rick Perry stands at a staggering low amount of contributions relative to the front runners.  This depends on the timing of this particular dataset as Rick Perry may have dropped out before contributions started piling in for some candidates in advance, for instance, of Super Tuesday.  It is unclear at this time why a 4-time governor would have such dismal contributions.  Additionally, Donald Trump has little contributions to speak of.  Naturally he has admitted to self-funding, or rather loaning his campaign money, and as such may not domineer this space like he dominates any speaking engagement.
+
+
+Contributions count however the amount of each contribution matters as well.  Let's investigate this.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+
+qplot(x=cont$contb_receipt_amt, data=cont, binwidth=100) +
+  scale_x_continuous(limits=c(-3000,12500), breaks=round(seq(-3000, 12500, by=250),1)) + 
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+
+
+print_stat_func(data, "contb_receipt_amt")
+#myTable <- table(data$contb_receipt_amt)
+#df <- as.data.frame(myTable)
+#df
+```
+
+
+The majority of contributions are in denominations of less than $250 but more than $0.  This last point is clarified as a small but non-zero amount of recorded contributions are less than $0.  Investigating the dataset it becomes clear that the dataset is treated like a ledger in which contributions of varying amounts may be made, withdrawn and reapplied at different amounts.  The withdrawn amount is recorded as negative.  I don't care to investigate withdrawn amounts and am more interested in understanding the pattern of contributing.  Let's narrow our window to the sub-$1000 contribution and see if we identify any patterns.  
+
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont, "contb_receipt_amt", -1)
+qplot(x=cont$contb_receipt_amt, data=cont, binwidth=5) +
+  scale_x_continuous(limits=c(0,1000), breaks=round(seq(0, 1000, by=25),1)) + 
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+
+Zooming in to the 0-1000 dollar range we see some peaks clustering around particular denominations.  $500, $250, $200 are popular contribution amounts but nothing compared to $100 and less.  Let's zoom in again to look at the sub-$100 range.
+
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont, "contb_receipt_amt", -1)
+qplot(x=cont$contb_receipt_amt, data=cont, binwidth=1) +
+  scale_x_continuous(limits=c(0,101), breaks=round(seq(0, 101, by=2.5),1)) + 
+  theme(axis.text.x = element_text(angle=90, hjust=1))
+```
+
+
+The trend becomes much clearer in the chart above.  Contributions are made in benchmark denominations of 5 and most notably at $25, $50 and $100.
+
+
+Let's move to looking at contributions by employer. But first let's see how many employers are listed.
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+length(unique(cont$contbr_employer))
+```
+
+With 14541 unique employers, it may be unlikely to draw any difference in contribution frequency, but let's for kicks explore the possibility.  We will first look at the frequency statistics for the employer variable.
+
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+print_stat_func(data, "contbr_employer")
+```
+
+Most employers (by mean and median) have less than 10 contributions but at least one employer has over 30000.  Let's subset the dataset to explore these high contributing employers.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont, "contbr_employer", 250)
+qplot(x=data$contbr_employer, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+```
+
+It makes sense that given those that are retired contributed the most, their listed employer would also read 'Retired'.  Following this however we have a smattering of self-employed, not-employed and unavailable information.  Again, looking at retired individuals in either the occupation or employer variable may yield some interesting insights down the line.  Let's keep this in mind.
+
+Lastly, let's explore contributions by date.
+
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+cont$datefield <- as.Date(cont$contb_receipt_dt, "%d-%b-%y")
+qplot(x=cont$datefield, data=cont, bins=100) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(cont$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(cont$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+#print_stat_func(cont, "contb_receipt_dt")
+```
+
+Clearly more contributions happen later in the race and there is an upward trend as time goes on.  There are some high points at the end of Jun 2015, end of September 2015 and end of January 2016.  It would be interesting to see what might have been happening around these times (debates? "entering the race" announcements? something else?) that led to higher than typical contribution rates.  It is also interesting to think about the size of contributions over time. We'll leave that to the next section.
+
+```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
+#Let's assign some variables we will think about using in the next few sections.
+
+leading_cand <- c("Clinton, Hillary Rodham", "Cruz, Rafael Edward 'Ted'", "Rubio, Marco", "Sanders, Bernard", "Trump, Donald J.")
+
+top5cities <- c("HOUSTON", "SAN ANTONIO", "DALLAS", "AUSTIN", "FORT WORTH")
+top11occupations <- c("RETIRED", "INFORMATION REQUESTED BEST EFFORTS", "HOMEMAKER", "NOT EMPLOYED", "ATTORNEY", "PHYSICIAN", "ENGINEER", "SALES", "CONSULTANT", "OWNER", "TEACHER")
+
+cont_df <- data.frame(cont)
+
+cont_df_leading <- cont_df[cont_df$cand_nm %in% leading_cand,]
+cont_df_leading_city <- cont_df_leading[cont_df_leading$contbr_city %in% top5cities,]
+cont_df_leading_occupation <- cont_df_leading[cont_df_leading$contbr_occupation %in% top11occupations,]
+
+cont_df_austin <- cont_df_leading[cont_df_leading$contbr_city=="AUSTIN",]
+cont_df_dallas <- cont_df_leading[cont_df_leading$contbr_city=="DALLAS",]
+cont_df_houston <- cont_df_leading[cont_df_leading$contbr_city=="HOUSTON",]
+cont_df_fortworth <- cont_df_leading[cont_df_leading$contbr_city=='FORT WORTH',]
+cont_df_sanantonio <- cont_df_leading[cont_df_leading$contbr_city=='SAN ANTONIO',]
+
+cont_df_Hillary <- cont_df[cont_df$cand_nm=='Clinton, Hillary Rodham',]
+cont_df_Ted <- cont_df[cont_df$cand_nm=="Cruz, Rafael Edward 'Ted'",]
+cont_df_Marco <- cont_df[cont_df$cand_nm=="Rubio, Marco",]
+cont_df_Bernie <- cont_df[cont_df$cand_nm=="Sanders, Bernard",]
+cont_df_Donald <- cont_df[cont_df$cand_nm=="Trump, Donald J.",]
+
+
+cont_df_leading_cityandoccupation <- cont_df_leading_city[cont_df_leading_city$contbr_occupation %in% top11occupations,]
+
+```
+
+# Univariate Analysis
+
+### What is the structure of your dataset?
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+dim(cont)
+```
+
+### What is/are the main feature(s) of interest in your dataset?
+The main feature of interest in the dataset is the number of contributions.
+
+### What other features in the dataset do you think will help support your investigation into your feature(s) of interest?
+The other features that will help support the investigation into the number of contributions will be the size of the contribution, the candidate being contributed to, the contribution date, the city, the contributor employer and contributor occupation.
+
+### Did you create any new variables from existing variables in the dataset?
+I created a new datefield variable to better manipulate the contribution date field.  In addition I created subsets of the dataset based on the top 5 most populated cities in the state for bivariate and multivariate analyses that will look at the composition of contributions within and across particular cities.  I also subset the dataset based on the current leading candidates.
+
+### Of the features you investigated, were there any unusual distributions? Did you perform any operations on the data to tidy, adjust, or change the form of the data? If so, why did you do this?
+The contribution amount exhibited an unusual range as it contained negative values.  Certainly contributions cannot be later retrieved as if the campaign is a bank. Further inspection showed that these negative values were constructed relative to a contributor changing their donated amount.  As such negative values can be safely ignored.
+
+Additionally, both employer and occupation showed highest rates of contribution for 'Retired' individuals.  Beyond those individuals data is missing or represents self-employed or non-employed individuals.  As such I will just be looking at the occupation field for the following analyses to dig into the 'Retired' contributors.
+
+
+# Bivariate Plots Section
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#Let's make some plotting functions to ease the burden of copy/paste
+
+date_chart_func <- function(data, fill){
+  qplot(x=data$datefield, fill=data[[fill]], data=data, bins=50) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(data$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(data$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+}
+
+date_chart_fill_func <- function(data, fill){
+  ggplot(data, aes(x = data$datefield)) + 
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(data$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(data$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_histogram(aes(fill = data[[fill]]), position = 'fill', binwidth = 5)
+}
+
+```
+Now let's start poking at how some of these variables relate to one another.  First, let's look at the number of contributions per candidate by city.  The top 5 most populated cities are included in this set as larger numbers of contributions will yield the greatest variances within cities.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#explore the features from above in all sorts of ways that i can:
+#name, date, contribution($), occupation, city
+
+#name x city
+data <- chart_order_func(cont_df_leading, "contbr_city", 0)
+qplot(x=data$contbr_city, fill=cand_nm, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_x_discrete(limits=top5cities)
+
+```
+
+This illustrates number of contributions per candidate by city.  The cities are ordered by population and shows a unique trend that while Austin has the 4th largest population in the state, it contains the 2nd largest number of contributions.  Additionally, while Ted Cruz represents roughly 50% of the contributions made in Houston and Dallas as well as a strong majority in San Antonio and Fort Worth, Austin has a large base of Bernie Sanders contributors.  The city of the contribution seems to have an effect on the candidate being contributed to.
+
+
+Let's look at the amounts contributed by occupation, city, candidate, date.  First let's look at amounts contributed across cities.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x=contbr_city, y=contb_receipt_amt, data=cont_df_leading_city) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_x_discrete(limits=top5cities) +
+  geom_boxplot()
+```
+
+Maybe the y-axis needs a log transform to be more interpretable.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x=contbr_city, y=contb_receipt_amt, data=cont_df_leading_city) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_x_discrete(limits=top5cities) +
+  geom_boxplot() + scale_y_log10()
+
+```
+
+There we go.  Interesting.  Houston had the most contributions but the IQR for contribution amount is larger for Dallas with a higher upper quartile.  San Antonio, Austin and Dallas are about equal with one another.  Is Dallas a wealthier city?  Looking at a quick source it seems as if the two cities may be about equal (http://www.chron.com/news/article/Wealthiest-zip-codes-in-Texas-5478136.php#photo-6178074).
+
+It remains to be seen why Dallas contributions are larger than Houston.
+
+
+What about occupation and receipt amount? Seems like there would be a difference here.  Let's investigate.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont_df_leading_occupation, "contbr_occupation", 0)
+qplot(x=data$contbr_occupation, y=data$contb_receipt_amt, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_boxplot() + scale_y_log10()
+
+```
+
+There is a clear effect of occupation on the contribution amount.  Owners, Attorneys and Homemakers give the most sizable contributions while the unemployed give the least.  Income likely has a hand to play here.
+
+
+Do some candidates garner higher contribution amounts? Let's see...
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont_df_leading, "cand_nm", 0)
+qplot(x=data$cand_nm, y=data$contb_receipt_amt, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_boxplot() + scale_y_log10()
+
+```
+
+Marco Rubio stands out as receiving the highest interquartile range of contribution amounts followed by Donald Trump.  Donald Trump however has the highest median contribution amount.  This is interesting as Donald Trump has such few contributions and claims to primarily be self-funding his campaign.  It is unclear why he would attract larger contribution amounts than say Ted Cruz or Hillary Clinton.  Bernie Sanders has the smallest contribution amounts and this confirms what he has been speaking about on the campaign trail.
+
+Next, let's look across time and see if contribution amounts have remained consistent over time, declined or increased.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x=datefield, y=contb_receipt_amt, data=cont_df_leading) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+Phew that is an ugly chart!  Let's plot a regression line to see if there is a general trend up or down as it is quite busy.  Also let's run a log transform as the y scale contains several orders of magnitude.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+qplot(x=datefield, y=contb_receipt_amt, data=cont_df_leading) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_smooth(method='lm', color='red') + scale_y_log10()
+
+```
+
+Unexpected but this makes sense.  As time progresses contribution size decreases.  This could be driven by two factors: one, early contributors are likely more politically motivated and are willing to risk more disposable income on their preferred candidate, and two, as the campaigns become more visible, those with less to give may contribute $100 or less to a campaign.
+
+Next let's look at those candidate contributions across time.  My initial guess is that there will be time trends depending on candidates' popularity. Let's look.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+#name x date
+date_chart_func(cont_df_leading, "cand_nm")
+
+```
+
+
+At first glance, Bernie Sanders shows tremendous growth beginning in August / September of 2015.  Ted Cruz and Hillary Clinton make up the majority of the rest of the variance and at this point it is unclear whether they have gained influence or have more contributions generally.  Let's reformat the plot as a percentage of total contributions for the particular date.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+date_chart_fill_func(cont_df_leading, "cand_nm")
+
+```
+
+This was unexpected.  First, it was a bit difficult getting the chart I wanted, percentages rather than frequencies of contributions per candidate across time.  Second, contributions to Hillary Clinton have dropped from April 2015 through January of 2016 while contributions to Bernie Sanders have increased significantly.  Contributions to Marco Rubio have slowed dramatically and contributions to Ted Cruz have slowly diminished.  I would not have expected Hillary Clinton contributions to trend downward.  Especially now knowing how she had won Texas during Super Tuesday.  Maybe her campaigning took a turn to another set of states as she was projected to win Texas?  Unclear at this point.  Unexpected findings in this chart nonetheless.
+
+Playing off of a previous chart however, Bernie Sanders's rise can also explain part of the drop in the size of contribution amounts across time as the two are very related. 
+
+
+Let's move now to contributions per candidate by amount contributed.  This will get at how much the candidate's base is supporting on average.  
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont_df_leading, "contb_receipt_amt", 0)
+qplot(x=contb_receipt_amt, fill=cand_nm, data=data, binwidth=50) +
+  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+As we saw before most contributions happen at or below $100. As such that is where most of our data is clustered.  Interestingly Hillary Clinton's contributions seem to exist at all points in the spectrum and contain, along with Ted Cruz, a number of contributions at higher dollar ranges (>$2500).  Bernie Sanders on the other hand mostly collects contributions from those donating in the sub-$100 range.  Like the previous chart, let's look at the percentage of contributions per candidate by the dollar amount of the contribution to see which candidate collects the most as a percentage of all candidates, out of each dollar range.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont_df_leading, "contb_receipt_amt", 0)
+ggplot(data, aes(x=contb_receipt_amt)) +
+  geom_histogram(aes(fill = cand_nm), position = 'fill', binwidth = 100) +
+  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+Unfortunately this chart is not as clear cut as the previous percentage chart.  It is possible to extract some information from the chart however.  Again Bernie Sanders receives his highest portion of the low dollar value contributions but the number of contributions in each category for Ted Cruz, Hillary Clinton and Marco Rubio end up drowning out the rest.  It looks as if Ted Cruz gets as many high dollar contributions as Hillary Clinton and Marco Rubio generally, however this ignores the number of contributions at each of these higher categories.  Ignoring the fequency obscures the fact that Hillary Clinton getting a higher percentage of contributions at a $2700 value may have only received 3 contributions at this amount.  This chart is not extremely useful in itself.
+
+Next, let's look at contributions by candidate name across occupations.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont_df_leading, "contbr_occupation", 250)
+qplot(x=data$contbr_occupation, fill=cand_nm, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+Two things jump out at me.  First, among retired individuals there are quite a few Ted Cruz contributors.  Second, among the unemployed, there are quite a few Bernie Sanders contributors.  This seems like the ideal case to log transform the y axis to get a better look at the composition of each of these major occupation categories.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+data <- chart_order_func(cont_df_leading, "contbr_occupation", 250)
+qplot(x=data$contbr_occupation, fill=cand_nm, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_log10()
+
+```
+
+Interesting.  Taking the raw counts out we see that occupations don't have much of an influence on candidate contribution, excepting the unemployed.  
+
+
+To take a quick break and sum up where we are: 
+
+1) The size of contributions seem to be decreasing over time.
+2) Size of contributions relate to the city in which the contribution was made, occupation of contributor and candidate (Marco Rubio and Donald Trump garnering the highest).
+3) The number of contributions per candidate seem most heavily influenced by city and date and not so much by receipt amount or occupation.
+
+
+
+Now let's look at the influence of date on contributions per occupation and city.
+
+First, the relationship between occupation and date of contribution.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+date_chart_func(cont_df_leading_occupation, "contbr_occupation")
+
+```
+
+No clear trend emerges here.  Knowing that those that are not employed tend to be contribute to Bernie Sanders I can identify a trend of higher numbers of contributions among the Not Employed group beginning in August / September 2015, however the effect is a bit subtle.  Let's look at the percentage across dates to see if any trend becomes clearer.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+date_chart_fill_func(cont_df_leading_occupation, "contbr_occupation")
+
+```
+
+
+Again, the Not Employed group does show some signs of growing numbers of contributions but the resulting chart is subtle on its effect size.  Those that are retired are by far the highest contributing group.
+
+Let's turn to the top 5 cities and their contributions across time.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+date_chart_func(cont_df_leading_city, "contbr_city")
+
+```
+
+
+These charts lend themselves to percentage fills as it is difficult to understand the growth of any particular category as the number of contributions as a whole is growing so much over time.  Let's do the percentage chart now.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+date_chart_fill_func(cont_df_leading_city, "contbr_city")
+
+```
+
+
+Looking at the percentages of contributions of cities across time we can see that Houston initially took much of the contributions but as time went on, San Antonio and Austin saw increased levels of contribution relative to the rest.  This could be due to Houston's rate of contributions shrinking, however looking at the frequency chart from above this does not seem like the case.  City compositions of contributions do seem to change over time.
+
+Let's turn again to the receipt amount vs occupation and city. Do certain occupations give more frequently at particular dollar values? Do certain cities give more frequently at particular dollar values?
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_occupation, "contb_receipt_amt", 0)
+qplot(x=contb_receipt_amt, fill=contbr_occupation, data=data, binwidth=50) +
+  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+Not especially useful, maybe a log scale?
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_occupation, "contb_receipt_amt", 0)
+qplot(x=contb_receipt_amt, fill=contbr_occupation, data=data, binwidth=50) +
+  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_log10()
+
+```
+
+Also not extremely useful. Let's instead look at the fill chart and investigate percentage differences.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_occupation, "contb_receipt_amt", 0)
+ggplot(data, aes(x=contb_receipt_amt)) +
+  geom_histogram(aes(fill = contbr_occupation), position = 'fill', binwidth = 100) +
+  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+Ok, this is better.  We can see that retired individuals give less relative to other groups as the contribution amount increases.  Additionally it looks as if attorneys, homemakers and owners tend to give higher dollar value contributions as compared to the other top occupations and that those who are not employed tend to give lower contribution amounts.
+
+
+Let's look at these contributions split by city.  Instead of the bar charts, let's move right into a fill chart and compare percentages.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_city, "contb_receipt_amt", 0)
+ggplot(data, aes(x=contb_receipt_amt)) +
+  geom_histogram(aes(fill = contbr_city), position = 'fill', binwidth = 100) +
+  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+This chart is harder to identify trends in, however there are a couple points.  One, Houston and Dallas seem to have higher percentages of contributions at larger dollar values than the rest.  Austin makes up a good share of low dollar value contributions but drops off toward the higher dollar values.  San Antonio and Fort Worth do not make much of an impact.
+
+
+Another way to look at the composition of a city is by it's primary occupations.  Let's look at the top occupations across cities and see if they are consistent.  The order here will be: Houston, San Antonio, Dallas, Austin, and Fort Worth.  The graphs show occupations with more than 100 contributions in each city. 
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_houston, "contbr_occupation", 100)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+data <- chart_order_func(cont_df_sanantonio, "contbr_occupation", 100)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+data <- chart_order_func(cont_df_dallas, "contbr_occupation", 100)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+data <- chart_order_func(cont_df_austin, "contbr_occupation", 100)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+data <- chart_order_func(cont_df_fortworth, "contbr_occupation", 100)
+qplot(x=data$contbr_occupation, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+
+It does look like the top occupations hold constant across each of the 5 cities being investigated.  Now let's look at the occupations split by city to see if relative proportions of those occupations are different across cities.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_cityandoccupation, "contbr_occupation", 0)
+qplot(x=data$contbr_occupation, data=data, fill=contbr_city) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```  
+
+Seems like a log transform on the y axis may yield a more interpretable result. Let's do that.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_cityandoccupation, "contbr_occupation", 0)
+qplot(x=data$contbr_occupation, data=data, fill=contbr_city) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_log10()
+  
+```  
+
+
+Occupations of contributors may be relatively constant across cities too.  Let's try a fill chart to really see if there is a difference.
+
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- chart_order_func(cont_df_leading_cityandoccupation, "contbr_occupation", 0)
+ggplot(data, aes(x=contbr_occupation)) +
+  stat_count(aes(fill = contbr_city), position = 'fill', width = .85) +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+  
+```    
+
+
+So it seems Austin has a greater percentage of Not Employed contributors and as we know from before they tend to be Bernie Sanders and Hillary Clinton supporters. 
+...
+...
+
+To sum up our results so far:
+1) The size of contributions decreases over time.
+2) Marco Rubio and Donald Trump have garnered the highest interquartile ranges of contributions amounts.
+3) The number of contributions per candidate seems to have a relationship with date of contribution and city of contributor
+4) The number of contributions per candidate does not seem to have a strong relationship with occupation of the contributor or the contribution amount
+5) The city of contributor relates to the date contributed as a few cities' contributor base grows over time
+6) The occupation of the contributor affects the amount contributed
+7) The occupation of the contributor is related to the city of the contributor (i.e. more Not Employed and Sales in Austin, more Engineers and Teachers in Houston)
+
+# Bivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. How did the feature(s) of interest vary with other features in the dataset?
+The number of contributions per candidate related strongly with date and city.  For instance with regards to date, overall contributions have increased from January 2015 through January 2016 with Hillary Clinton's relative contributions decreasing, Ted Cruz's and Marco Rubio's remaining constant and Bernie Sanders's growing considerably.  Donald Trump's contributions have been close to zero consistently.  
+
+With regard to city, contributions are strongest in Houston which exhibits a strong showing for Ted Cruz. However, the second highest levels of contributions occur in Austin, the fourth most populous city in Texas where both Bernie Sanders and Hillary Clinton have the largest number of contributions.
+
+Both city and date relate to one another as well, with regard to number of contributions.  Houston was an early leader in contributions however Austin, and to some extent San Antonio, has seen a strong rise in contributions since April of 2015.
+
+The number of contributions per candidate did not exhibit strong trends with the occupation of the contributor or the amount of the contribution.  There is some relationship with contributions for Bernie Sanders as the overwhleming majority of his contributions come in $100 or less amounts.  Other candidates have less steep distributions.
+
+Perhaps not suprisingly there exists a relationship between the amount of the contribution and the occupation of the contributor.  Retired individuals predominately gave lower denominations along with the unemployed while attorneys gave the highest amounts.
+
+Finally, there are some macro trends of occupation of the contributor and city of the contributor.  For instance there are more unemployed individuals and those in sales contributing in Austin than other cities while there are more engineers in Houston contributing.
+
+### Did you observe any interesting relationships between the other features (not the main feature(s) of interest)?
+An unexpected finding was that the contributed amount did not seem to vary with city or with candidate.  I had expected that clearer relationships would be shown across both variables.
+
+With regard to the size of the contribution it was surprising to see that Donald Trump and Marco Rubio exhibited the highest IQRs. It is unclear what may be driving their contribution sizes up.
+
+### What was the strongest relationship you found?
+The strongest relationship I found was between the number of contributions per candidate by date and by city.  Hillary Clinton and Bernie Sanders showed an inverse relationship with regard to contributions over time and Houston had the strong majority of contributions across the state.
+
+
+# Multivariate Plots Section
+
+Now that we have our 7 relationships identified:
+1) contribution amount by date
+2) contribution amount by candidate
+1) number of candidate contributions by city
+2) number of candidate contributions by date
+3) number of city contributions by date
+4) occupation by amount contributed
+5) number of occupation contributions by city
+
+... let's evaluate any multivariate patterns.
+
+First we have primarily categorical variables so our multivariate analysis will highlight relationships with our one continous variable: contribution amount.
+
+In addition, date will exist only as an X-axis value. 
+
+This leaves City, Occupation and Candidate to split the data over.
+
+First let's look at the relationship of City on Amounts Contributed split by Candidate
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(aes(x=contbr_city,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
+  geom_boxplot(aes(color = cand_nm)) + scale_y_log10() + scale_color_hue()
+
+```
+
+It is unclear what relationships may exist here other than the relatively low contribution amounts for Bernie Sanders as compared to the rest of the candidates.  It is difficult to decipher however as the spread of contribution amounts for each candidate is quite large.  Let's see if the chart is more interpretable with City and Candidate switched.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(aes(x=cand_nm,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
+  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + scale_color_hue()
+
+```
+
+This is a bit more helpful.  Namely, here it is clearer that Donald Trump, even drawing fewer contributions overall than the rest of the candidates, has the largest dollar size of contributions on average.  This is quite interesting.  Specifically in that San Antonio is a key driver for this effect.  Additionally of each city, Austin has the most uniform distribution of contribution sizes across candidates.    
+
+
+
+Next let's look at the relationship of Date on Amounts Contributed split by Candidate
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- cont_df_leading
+qplot(x=datefield, y=contb_receipt_amt, color=cand_nm, data=data) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(data$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(data$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_smooth(method='lm', color='black') + 
+  scale_y_log10() +
+  facet_wrap(~cand_nm, ncol=1)
+```
+
+Each of the candidates exhibit negative slopes with respect to their contribution amounts.  No new insights gained here.
+
+
+Next let's look at the relationship of Candidate on Amounts Contributed split by Occupation
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(aes(x=cand_nm,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
+  geom_boxplot(aes(color = contbr_occupation)) + scale_y_log10() + scale_color_hue() +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+One key thing to pop out of this chart is that Engineers have a smaller median contribution amount for Marco Rubio than other occupations even while Engineers have moderate median contribution amounts relative to other occupations for other candidates.  Did Marco make some Engineers nervous?  Again Donald Trump has some erratic relationships between occupation and contribution amount.  For instance, Physicians have the largest contributions generally and Attorneys have the smallest generally.  No teachers have contributed nor any unemployed people.  Maybe Donald is not as popular with these groups?
+
+
+Let's move now to the relationship between Occupation and Contribution Amount split by City
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+ggplot(aes(x=contbr_occupation,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
+  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + scale_color_hue() +
+  theme(axis.text.x = element_text(angle=60, hjust=1))
+
+```
+
+Both Austin and Houston owners contribute larger amounts than other cities. Additionally Fort Worth attorneys tend to contribute less than other city attorneys.  Other than this the effect of contribution city on the relationship of occupation and contribution amount does not show much variation.
+
+Let's investigate the relationship between Date and Contribution Amount split by City. It is possible that individuals contribute different amounts depending on both the city they live in and the stage in the race.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- cont_df_leading_cityandoccupation
+qplot(x=datefield, y=contb_receipt_amt, color=contbr_city, data=data) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(data$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(data$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_smooth(method='lm', color='black') + 
+  scale_y_log10() +
+  facet_wrap(~contbr_city, ncol=1)
+
+```
+
+There does not seem to be any real effect.  All cities show a downward slope indicated the general trend that the later in the race the smaller the contributions get on average.
+
+Let's look at a similar chart but this time instead of splitting by City, let's split by Occupation.
+
+```{r echo=FALSE, message=FALSE, warning=FALSE}
+
+data <- cont_df_leading_occupation
+qplot(x=datefield, y=contb_receipt_amt, color=contbr_occupation, data=data) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(data$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(data$datefield)))) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_smooth(method='lm', color='black') + 
+  scale_y_log10() +
+  facet_wrap(~contbr_occupation, ncol=1)
+
+```
+
+Again, no effect here besides the original effect of decreased contribution size over time.
+
+
+Recap:
+The multivariate plots did not elucidate many new effects beyond what has already been seen.  One effect that did arise was the composition of Donald Trump's contribution amounts by occupation.  His contributors exhibited a much different pattern than other candidates, namely, that attorneys contributed the smallest dollar values and physicians contributed the highest dollar values (of those that contributed to his campaign).  Additionally, Donald Trump's contribution effect is driven in a large part by San Antonio which has fewer contributions overall compared to Houston, Dallas and Austin while being the second most populous city.
+
+
+
+
+# Multivariate Analysis
+
+### Talk about some of the relationships you observed in this part of the investigation. Were there features that strengthened each other in terms of looking at your feature(s) of interest?
+
+Many of the multivariate plots did not show any effect beyond the bivariate plots prior.  The added complexity showed little insight.  However, the few insights that were gleaned were unexpected and interesting.  By investigating the Contribution Amount by Candidate across Cities, Donald Trump showed high contributions coming from San Antonio.  Previously San Antonio had shown itself to be a minor player in terms of contribution relative to Houston, Dallas and Austin.  Donald Trump seemed to garner higher dollar contributions from contributors in San Antonio than any candidate received in any city (on average).  In addition, Donald Trump's contributors showed an interesting pattern.  For each other candidate Attorneys generally gave the highest dollar contributions.  However with Donald Trump, Attorneys gave the lowest dollar value contribution while Physicians gave the highest (excluding those occupations that did not contribute at all to Donald Trump).  This could be driven by the small sample size of contributions given to Donald Trump relative to other candidates.
+
+
+### Were there any interesting or surprising interactions between features?
+
+The above findings related to Donald Trump were quite surprising!
+
+
+### OPTIONAL: Did you create any models with your dataset? Discuss the strengths and limitations of your model.
+
+
+------
+
+# Final Plots and Summary
+
+### Plot One
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_One}
+data <- chart_order_func(cont, "cand_nm", -1)
+qplot(x=data$cand_nm, data=data) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_log10() +
+  ggtitle("Number of Contributions per Presidential Candidate") +
+  labs(x="Presidential Candidates", y="Number of Contributions (Log)")
+
+```
+
+### Description One
+Plot 1 illustrates the contribution frequency by presidential candidate in the state of Texas.  There is a clear preference for Ted Cruz as he is a sitting senator for the state, however Bernie Sanders and Hillary Clinton also draw large numbers of contributions.  At first glance Ted Cruz, Bernie Sanders, Hillary Clinton and Marco Rubio are the front-runners with Donald Trump and John Kasich drawing far fewer contributions.
+
+
+### Plot Two
+```{r echo=FALSE, message=FALSE, warning=FALSE, Plot_Two}
+data <- chart_order_func(cont_df_leading, "cand_nm", 0)
+qplot(x=data$cand_nm, y=data$contb_receipt_amt, data=data) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_boxplot() + scale_y_log10() +
+  ggtitle("Contribution Size Ranges per Presidential Candidate") +
+  labs(x="Leading Presidential Candidates", y="Contribution Size (Log)")
+
+```
+
+### Description Two
+Plot 2 slims the presidential candidate field to the front runners: Ted Cruz, Bernie Sanders, Hillary Clinton, Marco Rubio and Donald Trump.  This plot looks at the relationship between the candidate and the size of contributions they have received.  While Ted Cruz has received the most contributions, Marco Rubio and Donald Trump have received higher dollar value contributions on average.  Interestingly, Donald Trump has received the highest median dollar value contribution.  Given such few contributions relative to the other candidates, further investigation is needed ot understand this trend.
+
+### Plot Three
+```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=4, Plot_Three}
+
+ggplot(aes(x=cand_nm,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation) +
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + scale_color_hue(name='') +
+  ggtitle("Contribution Size Ranges per Presidential Candidate Split by City") +
+  labs(x="Leading Presidential Candidates", y="Contribution Size (Log)")
+
+```
+
+### Description Three
+Plot 3 dives deeper into the relationship shown in Plot 2.  Namely, this chart investigates what the effects are of City on the relationship between Candidate and the size of contributions.  Donald Trump had shown high dollar value contributions similar to Marco Rubio yet had higher median dollar value contributions.  Plot 3 shows that this effect is driven primarily by San Antonio. The contributions received by Donald Trump from contributors in San Antonio have been larger than for any other candidate in any other city in Texas.  For a candidate with a low number of contributions and a city with a low number of contributions given its population, it is interesting that this relationship exists.  In addition, with a large Hispanic and Mexican population and Donald Trump's remarks regarding immigration and his preferred U.S. - Mexico relation, it is unclear why San Antonio is showing this particular affect.  
+
+------
+
+# Reflection
+What a strange election cycle for the U.S.  To have Donald Trump as a Republican front-runner is amazing. Stranger still, while Ted Cruz claims Texas as a home state (and won the Texas primary), Donald Trump still garnered quite sizeable donations, specifically, from a city with a large Hispanic and Mexican population, San Antonio. At first glance Donald Trump seemed to have little support in Texas.  While the number of contributions remained low in Texas, his few supporters supported generously.
+
+Additionally, as an ancillary point, both Hillary Clinton and Bernie Sanders have shown strong support in Texas in both number and size of contributions.  While Austin seems to favor Democrats, Houston and Dallas both generated quite a bit of support for the Democrat candidates.
+
+In conducting this analysis, I believed that the results would indicate strongest support in both number and size of contributions for Ted Cruz.  It is his home state so naturally if he was voted Senator, he would generate support.  To a large extent this is true. He won the Texas primary.  Looking at Donald Trump's contributions, it seemed like he was a blip on the radar and nothing more.  However, it was quite surprising to see how large his contributions were. The same goes for Marco Rubio who primarily drew his support from Dallas.  But Donald Trump is an enigma here: a low number of contributions made to him, driven by San Antonio.
+
+A big struggle with the data set was dealing with data over time.  Much of my struggle was figuring out the proper formatting for the dates.  Even though the date examples did not make my  cut for the final 3 plots, I spent the bulk of my time investigating date data.  Similarly I found myself typing similar plot scripts over and over until I realized I could package these up into discrete functions and save some future time.  The trouble however is that I spent most of my time retyping the plots. Once I input the functions I didn't find myself using them as often - only to make the script look cleaner.  If I continued the analysis I would likely use these functions more and they would prove to be more useful.
+
+A big success was the ultimate result: Donald Trump received sizeable contributions from San Antonio.  It still shocks me.  It was a wholly unexpected result.
+
