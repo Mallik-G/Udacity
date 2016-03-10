@@ -40,11 +40,13 @@ I'm thinking about the following:
 Ultimately I am interested in seeing the composition of contributions across cities, understanding if there are affects by employer, occupation, date, and certainly by candidate.
 
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
-#It is more helpful to view charts in an ordered way, so let's put the ordering and subsetting code into a function (we use it alot).
+#It is more helpful to view charts in an ordered way, so let's put the 
+#ordering and subsetting code into a function (we use it alot).
 chart_order_func <- function(data, x, number){
-  data_new <- within(data, data[[x]] <- factor(data[[x]], 
-                                               levels=names(sort(table(data[[x]]),
-                                                                 decreasing=TRUE))))
+  data_new <- within(data, data[[x]] <- 
+                       factor(data[[x]], 
+                              levels=names(sort(table(data[[x]]), 
+                                                decreasing=TRUE))))
   
   table_sub <- table(data_new[[x]])
   x<-get(x, data_new)
@@ -85,13 +87,16 @@ print_stat_func <- function(data, x){
 ```
 
 
-Let's first look at the number of contributions across cities.
+Let's first look at the number of contributions across cities. Given the skew, we will log transform the data to get a better understanding of the distribution.
 
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 
 data <- chart_order_func(cont, "contbr_city", -1)
 qplot(x=data$contbr_city, data=data) +
-  scale_x_discrete(breaks=NULL)
+  scale_x_discrete(breaks=NULL) +
+  scale_y_log10() +
+  labs(x="Cities in Texas ordered by number of contributions", 
+       y='Count (log)')
 
 print_stat_func(data, "contbr_city")
 ```
@@ -124,12 +129,14 @@ I'll likely want to reduce the number of cities in my investigation down the roa
 
 
 
-Now let's move on to another variable and plot contributions by occupation.
+Now let's move on to another variable and plot contributions by occupation.  Again we will log transform.
 
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 data <- chart_order_func(cont, "contbr_occupation", -1)
 qplot(x=data$contbr_occupation, data=data) +
-  scale_x_discrete(breaks=NULL)
+  scale_x_discrete(breaks=NULL) +
+  scale_y_log10() +
+  labs(x="Occupation ordered by number of contributions per")
 
 print_stat_func(data, "contbr_occupation")
 
@@ -157,13 +164,18 @@ The vast majority of folks contributing are classified as 'Retired', followed di
 It will be interesting to investigate the composition of the Retired occupation as they are a large group and likely have candidate variance built in, however retirement denotes an older than average age which nudges candidate selection to the right politically.
 
 
-Next let's look at contributions by candidate.
+Next let's look at contributions by candidate.  Here we will log transform as a few candidates have orders of magnitude more contributions than others.
 
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
-
 data <- chart_order_func(cont, "cand_nm", -1)
 qplot(x=data$cand_nm, data=data) + 
   theme(axis.text.x = element_text(angle=60, hjust=1))
+
+data <- chart_order_func(cont, "cand_nm", -1)
+qplot(x=data$cand_nm, data=data) + 
+  theme(axis.text.x = element_text(angle=60, hjust=1)) +
+  scale_y_log10() +
+  labs(y="count (log)")
 
 print_stat_func(data, "cand_nm")
 
@@ -177,7 +189,8 @@ Contributions count however the amount of each contribution matters as well.  Le
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 
 qplot(x=cont$contb_receipt_amt, data=cont, binwidth=100) +
-  scale_x_continuous(limits=c(-3000,12500), breaks=round(seq(-3000, 12500, by=250),1)) + 
+  scale_x_continuous(limits=c(-3000,12500), 
+                     breaks=round(seq(-3000, 12500, by=250),1)) + 
   theme(axis.text.x = element_text(angle=90, hjust=1))
 
 
@@ -241,7 +254,12 @@ Lastly, let's explore contributions by date.
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 cont$datefield <- as.Date(cont$contb_receipt_dt, "%d-%b-%y")
 qplot(x=cont$datefield, data=cont, bins=100) +
-  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(cont$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(cont$datefield)))) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(cont$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(cont$datefield)))) +
   theme(axis.text.x = element_text(angle=60, hjust=1))
 
 #print_stat_func(cont, "contb_receipt_dt")
@@ -252,22 +270,29 @@ Clearly more contributions happen later in the race and there is an upward trend
 ```{r echo=FALSE, echo=FALSE, message=FALSE, warning=FALSE}
 #Let's assign some variables we will think about using in the next few sections.
 
-leading_cand <- c("Clinton, Hillary Rodham", "Cruz, Rafael Edward 'Ted'", "Rubio, Marco", "Sanders, Bernard", "Trump, Donald J.")
+leading_cand <- c("Clinton, Hillary Rodham", "Cruz, Rafael Edward 'Ted'", 
+                  "Rubio, Marco", "Sanders, Bernard", "Trump, Donald J.")
 
 top5cities <- c("HOUSTON", "SAN ANTONIO", "DALLAS", "AUSTIN", "FORT WORTH")
-top11occupations <- c("RETIRED", "INFORMATION REQUESTED BEST EFFORTS", "HOMEMAKER", "NOT EMPLOYED", "ATTORNEY", "PHYSICIAN", "ENGINEER", "SALES", "CONSULTANT", "OWNER", "TEACHER")
+top11occupations <- c("RETIRED", "INFORMATION REQUESTED BEST EFFORTS", 
+                      "HOMEMAKER", "NOT EMPLOYED", "ATTORNEY", "PHYSICIAN", 
+                      "ENGINEER", "SALES", "CONSULTANT", "OWNER", "TEACHER")
 
 cont_df <- data.frame(cont)
 
 cont_df_leading <- cont_df[cont_df$cand_nm %in% leading_cand,]
-cont_df_leading_city <- cont_df_leading[cont_df_leading$contbr_city %in% top5cities,]
-cont_df_leading_occupation <- cont_df_leading[cont_df_leading$contbr_occupation %in% top11occupations,]
+cont_df_leading_city <- 
+  cont_df_leading[cont_df_leading$contbr_city %in% top5cities,]
+cont_df_leading_occupation <- 
+  cont_df_leading[cont_df_leading$contbr_occupation %in% top11occupations,]
 
 cont_df_austin <- cont_df_leading[cont_df_leading$contbr_city=="AUSTIN",]
 cont_df_dallas <- cont_df_leading[cont_df_leading$contbr_city=="DALLAS",]
 cont_df_houston <- cont_df_leading[cont_df_leading$contbr_city=="HOUSTON",]
-cont_df_fortworth <- cont_df_leading[cont_df_leading$contbr_city=='FORT WORTH',]
-cont_df_sanantonio <- cont_df_leading[cont_df_leading$contbr_city=='SAN ANTONIO',]
+cont_df_fortworth <- 
+  cont_df_leading[cont_df_leading$contbr_city=='FORT WORTH',]
+cont_df_sanantonio <- 
+  cont_df_leading[cont_df_leading$contbr_city=='SAN ANTONIO',]
 
 cont_df_Hillary <- cont_df[cont_df$cand_nm=='Clinton, Hillary Rodham',]
 cont_df_Ted <- cont_df[cont_df$cand_nm=="Cruz, Rafael Edward 'Ted'",]
@@ -276,7 +301,9 @@ cont_df_Bernie <- cont_df[cont_df$cand_nm=="Sanders, Bernard",]
 cont_df_Donald <- cont_df[cont_df$cand_nm=="Trump, Donald J.",]
 
 
-cont_df_leading_cityandoccupation <- cont_df_leading_city[cont_df_leading_city$contbr_occupation %in% top11occupations,]
+cont_df_leading_cityandoccupation <- 
+  cont_df_leading_city[cont_df_leading_city$contbr_occupation 
+                       %in% top11occupations,]
 
 ```
 
@@ -309,7 +336,12 @@ Additionally, both employer and occupation showed highest rates of contribution 
 
 date_chart_func <- function(data, fill){
   qplot(x=data$datefield, fill=data[[fill]], data=data, bins=50) +
-  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(data$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(data$datefield)))) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(data$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(data$datefield)))) +
   theme(axis.text.x = element_text(angle=60, hjust=1))
 }
 
@@ -324,6 +356,8 @@ date_chart_fill_func <- function(data, fill){
   theme(axis.text.x = element_text(angle=60, hjust=1)) +
   geom_histogram(aes(fill = data[[fill]]), position = 'fill', binwidth = 5)
 }
+
+
 
 ```
 Now let's start poking at how some of these variables relate to one another.  First, let's look at the number of contributions per candidate by city.  The top 5 most populated cities are included in this set as larger numbers of contributions will yield the greatest variances within cities.
@@ -396,7 +430,12 @@ Next, let's look across time and see if contribution amounts have remained consi
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 qplot(x=datefield, y=contb_receipt_amt, data=cont_df_leading) +
-  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)))) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(cont_df_leading$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(cont_df_leading$datefield)))) +
   theme(axis.text.x = element_text(angle=60, hjust=1))
 
 ```
@@ -405,7 +444,12 @@ Phew that is an ugly chart!  Let's plot a regression line to see if there is a g
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 qplot(x=datefield, y=contb_receipt_amt, data=cont_df_leading) +
-  scale_x_date(labels=date_format("%b-%d-%Y"), breaks = seq(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)), by="1 month"), limits = c(as.Date("2015-01-01"), as.Date(max(cont_df_leading$datefield)))) +
+  scale_x_date(labels=date_format("%b-%d-%Y"), 
+               breaks = seq(as.Date("2015-01-01"), 
+                            as.Date(max(cont_df_leading$datefield)), 
+                            by="1 month"), 
+               limits = c(as.Date("2015-01-01"), 
+                          as.Date(max(cont_df_leading$datefield)))) +
   theme(axis.text.x = element_text(angle=60, hjust=1)) +
   geom_smooth(method='lm', color='red') + scale_y_log10()
 
@@ -562,8 +606,10 @@ Also not extremely useful. Let's instead look at the fill chart and investigate 
 
 data <- chart_order_func(cont_df_leading_occupation, "contb_receipt_amt", 0)
 ggplot(data, aes(x=contb_receipt_amt)) +
-  geom_histogram(aes(fill = contbr_occupation), position = 'fill', binwidth = 100) +
-  scale_x_continuous(limits=c(0,3000), breaks=round(seq(0, 3000, by=100),1)) +
+  geom_histogram(aes(fill = contbr_occupation), 
+                 position = 'fill', binwidth = 100) +
+  scale_x_continuous(limits=c(0,3000), 
+                     breaks=round(seq(0, 3000, by=100),1)) +
   theme(axis.text.x = element_text(angle=60, hjust=1))
 
 ```
@@ -617,7 +663,8 @@ It does look like the top occupations hold constant across each of the 5 cities 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-data <- chart_order_func(cont_df_leading_cityandoccupation, "contbr_occupation", 0)
+data <- chart_order_func(cont_df_leading_cityandoccupation, 
+                         "contbr_occupation", 0)
 qplot(x=data$contbr_occupation, data=data, fill=contbr_city) +
   theme(axis.text.x = element_text(angle=60, hjust=1))
 
@@ -627,7 +674,8 @@ Seems like a log transform on the y axis may yield a more interpretable result. 
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-data <- chart_order_func(cont_df_leading_cityandoccupation, "contbr_occupation", 0)
+data <- chart_order_func(cont_df_leading_cityandoccupation, 
+                         "contbr_occupation", 0)
 qplot(x=data$contbr_occupation, data=data, fill=contbr_city) +
   theme(axis.text.x = element_text(angle=60, hjust=1)) +
   scale_y_log10()
@@ -640,7 +688,8 @@ Occupations of contributors may be relatively constant across cities too.  Let's
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-data <- chart_order_func(cont_df_leading_cityandoccupation, "contbr_occupation", 0)
+data <- chart_order_func(cont_df_leading_cityandoccupation, 
+                         "contbr_occupation", 0)
 ggplot(data, aes(x=contbr_occupation)) +
   stat_count(aes(fill = contbr_city), position = 'fill', width = .85) +
   theme(axis.text.x = element_text(angle=60, hjust=1))
@@ -708,7 +757,8 @@ First let's look at the relationship of City on Amounts Contributed split by Can
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-ggplot(aes(x=contbr_city,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
+ggplot(aes(x=contbr_city,y=contb_receipt_amt), 
+       data=cont_df_leading_cityandoccupation)+
   geom_boxplot(aes(color = cand_nm)) + scale_y_log10() + scale_color_hue()
 
 ```
@@ -717,7 +767,8 @@ It is unclear what relationships may exist here other than the relatively low co
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-ggplot(aes(x=cand_nm,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
+ggplot(aes(x=cand_nm,y=contb_receipt_amt), 
+       data=cont_df_leading_cityandoccupation) + 
   geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + scale_color_hue()
 
 ```
@@ -751,9 +802,10 @@ Next let's look at the relationship of Candidate on Amounts Contributed split by
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-ggplot(aes(x=cand_nm,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
-  geom_boxplot(aes(color = contbr_occupation)) + scale_y_log10() + scale_color_hue() +
-  theme(axis.text.x = element_text(angle=60, hjust=1))
+ggplot(aes(x=cand_nm,y=contb_receipt_amt), 
+       data=cont_df_leading_cityandoccupation) +
+  geom_boxplot(aes(color = contbr_occupation)) + scale_y_log10() + 
+  scale_color_hue() + theme(axis.text.x = element_text(angle=60, hjust=1))
 
 ```
 
@@ -764,9 +816,10 @@ Let's move now to the relationship between Occupation and Contribution Amount sp
 
 ```{r echo=FALSE, message=FALSE, warning=FALSE}
 
-ggplot(aes(x=contbr_occupation,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation)+
-  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + scale_color_hue() +
-  theme(axis.text.x = element_text(angle=60, hjust=1))
+ggplot(aes(x=contbr_occupation,y=contb_receipt_amt), 
+       data=cont_df_leading_cityandoccupation) +
+  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + 
+  scale_color_hue() + theme(axis.text.x = element_text(angle=60, hjust=1))
 
 ```
 
@@ -872,10 +925,12 @@ Plot 2 slims the presidential candidate field to the front runners: Ted Cruz, Be
 ### Plot Three
 ```{r echo=FALSE, message=FALSE, warning=FALSE, fig.width=12, fig.height=4, Plot_Three}
 
-ggplot(aes(x=cand_nm,y=contb_receipt_amt), data=cont_df_leading_cityandoccupation) +
+ggplot(aes(x=cand_nm,y=contb_receipt_amt), 
+       data=cont_df_leading_cityandoccupation) +
   theme(axis.text.x = element_text(angle=60, hjust=1)) +
-  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + scale_color_hue(name='') +
-  ggtitle("Contribution Size Ranges per Presidential Candidate Split by City") +
+  geom_boxplot(aes(color = contbr_city)) + scale_y_log10() + 
+  scale_color_hue(name='') +
+  ggtitle("Contribution Size Ranges per Candidate Split by City") +
   labs(x="Leading Presidential Candidates", y="Contribution Size (Log)")
 
 ```
