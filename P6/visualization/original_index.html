@@ -5,11 +5,7 @@
 	<script src="http://d3js.org/d3.v3.min.js"></script>
 	<script src="http://dimplejs.org/dist/dimple.v2.0.0.min.js"></script>
 	<style>
-		circle.dimple-series-1 {
-			fill: red;
-			opacity: 100;
-	}
-	
+
 	h2 {
 		text-align: center;
 		}
@@ -33,7 +29,8 @@
 		  
 		  	d3.select('body')
 		  		.append('h2')
-		  		.text('World Cup Attendance');
+		  		.text('The relationship between handedness and home runs hit \
+		  		in 1157 baseball players');
 		  		
           	var svg = d3.select("body")
             	.append("svg")
@@ -45,28 +42,23 @@
       	/*
         	Dimple.js Chart construction code
       	*/
-
+			//My variables are:
+			//height, weight, avg, HR, name
           	var myChart = new dimple.chart(svg, data);
-          	var x = myChart.addTimeAxis("x", "year"); 
-          	myChart.addMeasureAxis("y", "attendance");
-          	x.dateParseFormat = "%Y";
-          	x.tickFormat = "%Y";
-          	x.timeInterval = 4;
-          	myChart.addSeries(null, dimple.plot.scatter);
-          	myChart.addSeries(null, dimple.plot.line);
-
+          	var x = myChart.addCategoryAxis("x", "handedness");
+          	var y = myChart.addMeasureAxis("y", "HR");
+          	var s = myChart.addSeries(null, dimple.plot.bar);
+          	s.aggregate = dimple.aggregateMethod.avg;
+          	
           	myChart.draw();
+
         	};
         	
     </script>
 </head>
 <body>
 	<script type="text/javascript">
-  	/*
-    	Use D3 (not dimple.js) to load the TSV file
-    	and pass the contents of it to the draw function
-    */
-  	d3.tsv("world_cup.tsv", draw);
+  	d3.csv("baseball_data.csv", draw);
   	</script>
 </body>
 </html>
