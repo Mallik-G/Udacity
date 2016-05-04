@@ -5,7 +5,8 @@
 	<script src="http://d3js.org/d3.v3.min.js"></script>
 	<script src="http://dimplejs.org/dist/dimple.v2.0.0.min.js"></script>
 	<style>
-
+	
+	/* style the title of the chart */
 	h2 {
 		text-align: center;
 		font-family: Verdana;
@@ -22,17 +23,18 @@
       	*/
 
         	"use strict";
+          	//establish the chart size and margin
           	var margin = 75,
               	width = 1400 - margin,
               	height = 600 - margin;
-
-		  	//debugger;
-		  
+              	
+		    //set the title of the chart
 		  	d3.select('body')
 		  		.append('h2')
-		  		.text('The relationship between batting average and home runs \
+		  		.text('A positive relationship between batting average and home runs \
 		  		in 1157 baseball players');
-		  		
+		  	
+		  	//create an SVG element in the DOM 	
           	var svg = d3.select("body")
             	.append("svg")
               	  .attr("width", width + margin)
@@ -43,68 +45,42 @@
       	/*
         	Dimple.js Chart construction code
       	*/
-			//My variables are:
+			//My dataset variables are:
 			//height, weight, avg, HR, name
+          	
+          	//instantiate a new chart object based on the svg and our data
           	var myChart = new dimple.chart(svg, data);
           	
-			//******************************************************
-          	//in the first iteration we had a simple bar graph
+          	//add axes based on our variables of interest
+			//note 'x' is a continuous axis and 'y' is a log transformed axis
+			//the log transform allows us to more easily visualize the number of
+			//    home runs as the range is 0 - ~600
+			var x = myChart.addMeasureAxis("x", "new_avg"); 
+          	var y = myChart.addLogAxis("y", "new_HR");
           	
-          	//var x = myChart.addCategoryAxis("x", "handedness");
-          	//var y = myChart.addMeasureAxis("y", "HR");
-          	//var s = myChart.addSeries(null, dimple.plot.bar);
-          	//s.aggregate = dimple.aggregateMethod.avg;
-          	
-          	//but Steen asked about the confidence intervals and I realized that
-          	//a look at the raw data would be a good way to see any trends
-          	//... what popped out of that is that there really wasn't a clear
-          	//trend of handedness on HR or batting avg
-          	//so I abandoned this chart style for a scatterplot
-          	//of home runs and batting avg without a handedness split
-			//************************************************************
-			
-			var x = myChart.addMeasureAxis("x", "avg"); 
-          	var y = myChart.addLogAxis("y", "HR");
+          	//add a series element such that each point represents a different person
+          	//   and bound to that data is their handedness
           	var s = myChart.addSeries(["name", "handedness"], dimple.plot.scatter);          	
-			s.aggregate = dimple.aggregateMethod.avg;
 			
-			//this is where a lot of change happened...
-			//at first, each grouping was a different color to see
-			//if handedness had an effect on HR/avg (it didn't)
-			//myChart.assignColor("L", "red");
-          	//myChart.assignColor("R", "blue");
-          	//myChart.assignColor("B", "yellow");
-			
-			//the second iteration, the colors were way too neon and was difficult to see
-			// i tried a handful of colors b
-			//myChart.assignColor("L", "blue");
-          	//myChart.assignColor("R", "blue");
-          	//myChart.assignColor("B", "blue");
-			
-			//third iteration, the opacity was set accordingly so that clustering 
-			//could be seen more easily
+			//given the number of overlapping data points and the lack of a trend
+			//    of handedness on performance, let's color each data point blue
+			//    and make the points somewhat transparent
           	myChart.assignColor("L", "blue", "", .25);
           	myChart.assignColor("R", "blue", "", .25);
           	myChart.assignColor("B", "blue", "", .25);
           	
-          	x.addOrderRule("avg");
+          	//set 'x' and 'y' axis titles and tick formats here
           	x.title = "Batting Average";
           	x.tickFormat = ",0.01f";
           	x.fontSize = "auto";
           	x.fontFamily = "Verdana";
-			//x.showGridlines = false;
 			
           	y.title = "# of Home Runs";
           	y.tickFormat = ",0.01f";
 			y.fontSize = "auto";
 			y.fontFamily = "Verdana";
 			
-			//the final iteration, based on Adrianne's feedback,
-			//flipped the axes which more immediately showed
-			//the relationship between HR and avg
-			
-			//also based on Suzanne's feedback, I changed font sizes, added appropriate
-			//axis titles and changed the font family from the default
+			//call the draw function to draw the chart
           	myChart.draw();
 
         	};
@@ -113,6 +89,12 @@
 </head>
 <body>
 	<script type="text/javascript">
+  	//import our dataset
+  	//NOTE: the dataset includes jittered data
+  	//players that achieved a 0.00 batting average and 0 HR
+  	//    are jittered such that the number of players
+  	//    in the category can be seen
+  	//    For 
   	d3.csv("baseball_data.csv", draw);
   	</script>
 </body>

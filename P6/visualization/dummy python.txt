@@ -1,0 +1,35 @@
+def first_unique(string):
+	alphabet = ['abcdefghijklmnopqrstuvwxyz']
+	new_string = ""
+	
+	if string == "":
+		return None
+		
+	for elem in string:
+		if elem in alphabet:
+			new_string+=elem
+	
+	if new_string == "":
+		return None
+	
+	
+	for i, elem in enumerate(new_string):
+		if i == len(new_string)-1:
+			return None
+		if elem in new_string[i+1:]:
+			continue
+		else:
+			unique_char = elem
+	
+	
+	return unique_char
+	
+	
+>first_unique('aabbcdd123')
+>c
+
+>first_unique('a')
+>a
+
+>first_unique('112233')
+>None
